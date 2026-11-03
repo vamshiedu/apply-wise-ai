@@ -6,12 +6,10 @@ import {
   Plus,
   LayoutGrid,
   List,
-  SlidersHorizontal,
   BriefcaseBusiness,
   Mail,
   FileText,
   BarChart3,
-  Settings,
   Bell,
   X,
   CalendarDays,
@@ -66,6 +64,13 @@ function formatDate(date?: string) {
     year: "numeric",
   });
 }
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function isFollowUpOverdue(app: Application) {
   if (!app.followUpDate) return false;
 
@@ -73,7 +78,7 @@ function isFollowUpOverdue(app: Application) {
     return false;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateString();
   return app.followUpDate < today;
 }
 const companyColors = [
@@ -85,7 +90,6 @@ const companyColors = [
 ];
 
 function App() {
-  const [followUpFilter, setFollowUpFilter] = useState("all");
   const [activePage, setActivePage] = useState<"applications" | "reminders">("applications");
   const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -121,27 +125,7 @@ function App() {
       app.location.toLowerCase().includes(searchText);
 
 
-      const today = new Date().toISOString().slice(0, 10);
-
-      const matchesFollowUp =
-        followUpFilter === "all" ||
-        (followUpFilter === "overdue" &&
-          !!app.followUpDate &&
-          app.followUpDate < today &&
-          app.status !== "Offer" &&
-          app.status !== "Rejected") ||
-        (followUpFilter === "today" &&
-          app.followUpDate === today &&
-          app.status !== "Offer" &&
-          app.status !== "Rejected") ||
-        (followUpFilter === "upcoming" &&
-          !!app.followUpDate &&
-          app.followUpDate > today &&
-          app.status !== "Offer" &&
-          app.status !== "Rejected") ||
-        (followUpFilter === "none" && !app.followUpDate);
-
-      return matchesStatus && matchesSearch && matchesFollowUp;
+      return matchesStatus && matchesSearch;
   });
 
   return filtered.sort((a, b) => {
@@ -161,7 +145,7 @@ function App() {
 
     return 0;
   });
-}, [applications, activeStatus, search, sortBy, followUpFilter]);
+}, [applications, activeStatus, search, sortBy]);
 
   async function saveApplication(application: Application) {
     const payload = {
@@ -288,7 +272,7 @@ function App() {
         ? 0
         : Math.round((successCount / totalApplications) * 100);
 
-        const today = new Date().toISOString().slice(0, 10);
+        const today = getLocalDateString();
 
         const followUpsDue = applications.filter(
           (app) =>
@@ -324,11 +308,6 @@ function App() {
           </div>
 
           <nav className="space-y-0.5">
-            <SidebarItem
-              icon={<BriefcaseBusiness size={17} />}
-              label="My Applications"
-              active
-            />
             <SidebarItem icon={<Mail size={17} />} label="Email Sync" />
             <SidebarItem icon={<FileText size={17} />} label="Resume Library" />
             <SidebarItem icon={<BarChart3 size={17} />} label="Insights" />
@@ -369,7 +348,7 @@ function App() {
             <div className="text-sm text-slate-500">
               Workspace <span className="mx-2 text-slate-300">/</span>
               <span className="font-medium text-slate-800">
-                My Applications
+                {activePage === "applications" ? "My Applications" : "Reminders"}
               </span>
             </div>
 
@@ -388,22 +367,28 @@ function App() {
             <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h1 className="text-[25px] font-semibold tracking-tight text-slate-900">
-                  My Applications
+                  {activePage === "applications" ? "My Applications" : "Reminders"}
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  Keep track of your job search in one place.
+                  {activePage === "applications"
+                    ? "Keep track of your job search in one place."
+                    : "Stay on top of follow-ups and next steps."}
                 </p>
               </div>
 
-              <button
-                onClick={openAddModal}
-                className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
-              >
-                <Plus size={17} />
-                Add application
-              </button>
+              {activePage === "applications" && (
+                <button
+                  onClick={openAddModal}
+                  className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
+                >
+                  <Plus size={17} />
+                  Add application
+                </button>
+              )}
             </div>
 
+            {activePage === "applications" && (
+              <>
             <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm font-medium text-slate-500">Total Applications</p>
@@ -493,18 +478,6 @@ function App() {
               </div>
 
               <div className="flex items-center gap-2">
-                <select
-                        value={followUpFilter}
-                        onChange={(e) => setFollowUpFilter(e.target.value)}
-                        className="rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600"
-                      >
-                        <option value="all">All follow-ups</option>
-                        <option value="overdue">Overdue</option>
-                        <option value="today">Due today</option>
-                        <option value="upcoming">Upcoming</option>
-                        <option value="none">No follow-up date</option>
-                      </select>
-
                 <div className="flex rounded-lg border border-slate-200 bg-white p-1">
                   <select
                       value={sortBy}
@@ -513,7 +486,7 @@ function App() {
                     >
                       <option value="newest">Newest applied</option>
                       <option value="oldest">Oldest applied</option>
-                      <option value="followUp">Follow-up date</option>
+                      <option value="followUp">Follow-up date (soonest)</option>
                     </select>
                   <button
                     onClick={() => setView("list")}
@@ -540,12 +513,34 @@ function App() {
                 </div>
               </div>
             </div>
+              </>
+            )}
             
             {activePage === "reminders" ? (
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Follow-up reminders
-                </h2>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-rose-100 bg-white p-4">
+                    <p className="text-sm font-medium text-slate-500">Overdue</p>
+                    <p className="mt-1 text-2xl font-semibold text-rose-600">{overdueFollowUps}</p>
+                  </div>
+                  <div className="rounded-xl border border-amber-100 bg-white p-4">
+                    <p className="text-sm font-medium text-slate-500">Due today</p>
+                    <p className="mt-1 text-2xl font-semibold text-amber-600">{followUpsDue}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-medium text-slate-500">Upcoming</p>
+                    <p className="mt-1 text-2xl font-semibold text-slate-900">
+                      {applications.filter((app) => app.followUpDate && app.followUpDate > today && app.status !== "Offer" && app.status !== "Rejected").length}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-900">All follow-ups</h2>
+                  <span className="text-sm text-slate-500">
+                    {applications.filter((app) => app.followUpDate && app.status !== "Offer" && app.status !== "Rejected").length} scheduled
+                  </span>
+                </div>
 
                 {applications.filter(
                   (app) =>
@@ -554,7 +549,8 @@ function App() {
                     app.status !== "Rejected"
                 ).length === 0 ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-                    No follow-ups due or overdue.
+                    <p className="font-medium text-slate-700">No follow-ups scheduled</p>
+                    <p className="mt-1">Add a follow-up date to an application to see it here.</p>
                   </div>
                 ) : (
                   applications
@@ -575,13 +571,18 @@ function App() {
                         <div>
                           <p className="font-medium text-slate-800">{app.company}</p>
                           <p className="text-sm text-slate-500">{app.role}</p>
-                          <p className="mt-1 text-xs text-rose-600">
+                          <p className={`mt-1 text-xs font-medium ${
+                            app.followUpDate < today
+                              ? "text-rose-600"
+                              : app.followUpDate === today
+                              ? "text-amber-600"
+                              : "text-slate-500"
+                          }`}>
                             {app.followUpDate < today
-                                ? "Overdue"
-                                : app.followUpDate === today
-                                ? "Due today"
-                                : "Upcoming"}{" "}
-                              · {formatDate(app.followUpDate)}
+                              ? "Overdue"
+                              : app.followUpDate === today
+                              ? "Due today"
+                              : "Upcoming"} · {formatDate(app.followUpDate)}
                           </p>
                         </div>
 
@@ -886,7 +887,7 @@ function AddApplicationModal({
   );
   const [date, setDate] = useState(
     initialApplication?.dateApplied ??
-      new Date().toISOString().slice(0, 10)
+      getLocalDateString()
   );
 
   const [jobUrl, setJobUrl] = useState(initialApplication?.jobUrl ?? "");
