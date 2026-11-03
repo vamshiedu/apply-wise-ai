@@ -2,10 +2,18 @@ package com.applywise.backend.application;
 import java.time.LocalDate;
 import jakarta.persistence.Column;
 import jakarta.persistence.*;
-
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import com.applywise.backend.auth.User;
 @Entity
 @Table(name = "job_applications")
 public class Application {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -85,5 +93,12 @@ public class Application {
 
     public void setFollowUpDate(LocalDate followUpDate) {
         this.followUpDate = followUpDate;
+    }
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

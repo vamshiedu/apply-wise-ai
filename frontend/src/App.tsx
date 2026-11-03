@@ -1,109 +1,53 @@
+import AuthPage from "./components/AuthPage";
+import StatsCards from "./components/StatsCard";
+
 import api from "./api";
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { Application, Status } from "./types/application";
+import { statuses, statusStyles, formatDate, getLocalDateString, isFollowUpOverdue } from "./utils/applicationUtils";
+import Sidebar from "./components/Sidebar";
+import AddApplicationModal from "./components/AddApplicationModal";
 import {
   Search,
   Plus,
   LayoutGrid,
   List,
-  BriefcaseBusiness,
-  Mail,
-  FileText,
-  BarChart3,
   Bell,
-  X,
   CalendarDays,
   Trash2,
   Pencil,
   ExternalLink,
 } from "lucide-react";
 
-type Status =
-  | "Saved"
-  | "Applied"
-  | "Interviewing"
-  | "Offer"
-  | "Rejected";
-
-type Application = {
-  id: number;
-  company: string;
-  role: string;
-  location: string;
-  dateApplied: string;
-  status: Status;
-  color?: string;
-  initials?: string;
-  jobUrl?: string;
-  followUpDate?: string;
-};
-
-const statuses: Status[] = [
-  "Saved",
-  "Applied",
-  "Interviewing",
-  "Offer",
-  "Rejected",
-];
-
-const statusStyles: Record<Status, string> = {
-  Saved: "bg-slate-100 text-slate-600",
-  Applied: "bg-blue-50 text-blue-700",
-  Interviewing: "bg-amber-50 text-amber-700",
-  Offer: "bg-emerald-50 text-emerald-700",
-  Rejected: "bg-rose-50 text-rose-700",
-};
-
-function formatDate(date?: string) {
-  if (!date) return "—";
-  const parsed = new Date(`${date}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return "—";
-  return parsed.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-function getLocalDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function isFollowUpOverdue(app: Application) {
-  if (!app.followUpDate) return false;
-
-  if (app.status === "Offer" || app.status === "Rejected") {
-    return false;
-  }
-
-  const today = getLocalDateString();
-  return app.followUpDate < today;
-}
-const companyColors = [
-  "bg-slate-100 text-slate-700",
-  "bg-blue-100 text-blue-700",
-  "bg-emerald-100 text-emerald-700",
-  "bg-amber-100 text-amber-700",
-  "bg-pink-100 text-pink-700",
-];
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(
+  Boolean(localStorage.getItem("token")));
   const [activePage, setActivePage] = useState<"applications" | "reminders">("applications");
   const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState<Application[]>([]);
   const [sortBy, setSortBy] = useState("newest");
   useEffect(() => {
-    api
-      .get<Application[]>("/applications")
-      .then((response) => setApplications(response.data))
-      .catch((error) => {
-        console.error("Failed to load applications:", error);
-        alert("Could not load applications from the server.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  if (!isAuthenticated) {
+    setApplications([]);
+    setLoading(false);
+    return;
+  }
+
+  const fetchApplications = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/applications");
+      setApplications(response.data);
+    } catch (error) {
+      console.error("Failed to fetch applications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchApplications();
+}, [isAuthenticated]);
 
   const [activeStatus, setActiveStatus] = useState("All");
   const [search, setSearch] = useState("");
@@ -289,59 +233,25 @@ function App() {
             app.status !== "Rejected"
         ).length;
 
-        
+        if (!isAuthenticated) {
+        return (
+          <AuthPage
+            onAuthenticated={() => {
+              setIsAuthenticated(true);
+            }}
+          />
+        );
+      }
+      const handleLogout = () => {
+        localStorage.removeItem("token");
+        setIsAuthenticated(false);
+        setApplications([]);
+      };
+              
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <div className="flex min-h-screen">
-        <aside className="hidden w-[232px] shrink-0 border-r border-slate-200/80 bg-white px-5 py-6 md:flex md:flex-col">
-          <div className="mb-10 flex items-center gap-3 px-1">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
-              <BriefcaseBusiness size={17} />
-            </div>
-            <span className="text-base font-semibold tracking-tight text-slate-900">
-              ApplyWise
-            </span>
-          </div>
-
-          <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            Workspace
-          </div>
-
-          <nav className="space-y-0.5">
-            <SidebarItem icon={<Mail size={17} />} label="Email Sync" />
-            <SidebarItem icon={<FileText size={17} />} label="Resume Library" />
-            <SidebarItem icon={<BarChart3 size={17} />} label="Insights" />
-          </nav>
-
-          <div className="mb-2 mt-8 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            Personal
-          </div>
-
-          <nav className="space-y-0.5">
-            <SidebarItem
-              icon={<BriefcaseBusiness size={17} />}
-              label="My Applications"
-              active={activePage === "applications"}
-              onClick={() => setActivePage("applications")}
-            />
-
-            <SidebarItem
-              icon={<Bell size={17} />}
-              label="Reminders"
-              active={activePage === "reminders"}
-              onClick={() => setActivePage("reminders")}
-            />
-          </nav>
-
-          <div className="mt-auto border-t border-slate-100 pt-4">
-            <p className="px-2 text-xs leading-5 text-slate-500">
-              Keep your search organized. Connect email sync when you’re ready.
-            </p>
-            <button className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50">
-              Connect Gmail
-            </button>
-          </div>
-        </aside>
+        <Sidebar activePage={activePage} onPageChange={setActivePage} />
 
         <main className="min-w-0 flex-1">
           <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5 md:px-8">
@@ -360,6 +270,12 @@ function App() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
                 V
               </div>
+              <button
+                onClick={handleLogout}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
+              >
+                Logout
+              </button>
             </div>
           </header>
 
@@ -389,55 +305,15 @@ function App() {
 
             {activePage === "applications" && (
               <>
-            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-              <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <p className="text-sm font-medium text-slate-500">Total Applications</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">
-                  {totalApplications}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <p className="text-sm font-medium text-slate-500">Interviews</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">
-                  {interviewCount}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <p className="text-sm font-medium text-slate-500">Offers</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">
-                  {offerCount}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <p className="text-sm font-medium text-slate-500">Rejected</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">
-                  {rejectedCount}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <p className="text-sm font-medium text-slate-500">Success Rate</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">
-                  {successRate}%
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Interview or offer
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <p className="text-sm font-medium text-slate-500">Follow-ups Due</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">
-                  {followUpsDue + overdueFollowUps}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {followUpsDue} today · {overdueFollowUps} overdue
-                </p>
-              </div>
-               </div>           
+            <StatsCards
+                totalApplications={totalApplications}
+                interviewCount={interviewCount}
+                offerCount={offerCount}
+                rejectedCount={rejectedCount}
+                successRate={successRate}
+                followUpsDue={followUpsDue}
+                overdueFollowUps={overdueFollowUps}
+              />          
             <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
               {["All", ...statuses].map((status) => (
                 <button
@@ -839,213 +715,6 @@ function App() {
         />
       )}
     </div>
-  );
-}
-
-function SidebarItem({
-  icon,
-  label,
-  active = false,
-  onClick,
-}: {
-  icon: ReactNode;
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition ${
-        active
-          ? "bg-slate-100 font-medium text-slate-900"
-          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-
-function AddApplicationModal({
-  onClose,
-  onSave,
-  initialApplication,
-}: {
-  onClose: () => void;
-  onSave: (application: Application) => void;
-  initialApplication: Application | null;
-}) {
-  const isEditing = Boolean(initialApplication);
-  const [company, setCompany] = useState(initialApplication?.company ?? "");
-  const [role, setRole] = useState(initialApplication?.role ?? "");
-  const [location, setLocation] = useState(initialApplication?.location ?? "");
-  const [status, setStatus] = useState<Status>(
-    initialApplication?.status ?? "Applied"
-  );
-  const [date, setDate] = useState(
-    initialApplication?.dateApplied ??
-      getLocalDateString()
-  );
-
-  const [jobUrl, setJobUrl] = useState(initialApplication?.jobUrl ?? "");
-  const [followUpDate, setFollowUpDate] = useState(
-    initialApplication?.followUpDate ?? ""
-  );
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!company.trim() || !role.trim()) return;
-
-    onSave({
-      id: initialApplication?.id ?? Date.now(),
-      company: company.trim(),
-      role: role.trim(),
-      location: location.trim() || "Not specified",
-      dateApplied: date,
-      status,
-      jobUrl: jobUrl.trim(),
-      color:
-        initialApplication?.color ??
-        companyColors[Math.floor(Math.random() * companyColors.length)],
-      initials: company.trim().charAt(0).toUpperCase(),
-      followUpDate,
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              {isEditing ? "Edit application" : "Add application"}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {isEditing
-                ? "Update the details for this role."
-                : "Save a job to your application tracker."}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FormField label="Company">
-            <input
-              required
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              placeholder="e.g. Google"
-              className="form-input"
-            />
-          </FormField>
-
-          <FormField label="Job title">
-            <input
-              required
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              placeholder="e.g. Software Engineer"
-              className="form-input"
-            />
-          </FormField>
-
-          <FormField label="Location">
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Hyderabad, India"
-              className="form-input"
-            />
-          </FormField>
-
-          <FormField label="Job posting URL">
-            <input
-              type="url"
-              value={jobUrl}
-              onChange={(e) => setJobUrl(e.target.value)}
-              placeholder="https://company.com/jobs/..."
-              className="form-input"
-            />
-          </FormField>
-
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="Status">
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as Status)}
-                className="form-input"
-              >
-                {statuses.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField label="Date applied">
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="form-input"
-              />
-            </FormField>
-            <FormField label="Follow-up date">
-                <input
-                  type="date"
-                  value={followUpDate}
-                  onChange={(e) => setFollowUpDate(e.target.value)}
-                  className="form-input"
-                />
-              </FormField>
-          </div>
-
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700"
-            >
-              {isEditing ? "Save changes" : "Add application"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function FormField({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold text-slate-600">
-        {label}
-      </span>
-      {children}
-    </label>
   );
 }
 
