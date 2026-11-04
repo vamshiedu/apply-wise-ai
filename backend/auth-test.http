@@ -2,15 +2,16 @@ GET http://localhost:8080/api/applications
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0ZXJAZ21haWwuY29tIiwiaWF0IjoxNzkzNzE5NDQ1LCJleHAiOjE3OTM4MDU4NDV9.Nl2na_peIl9bLzW28QGjwz_8QQXNbJto1wE79HupY9A
 
 ### Login with the test user
-POST http://localhost:8080/api/auth/register
+POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {
-  "name" : "Vamshi",
   "email": "tester@gmail.com",
   "password": "TestPass123!"
 }
 ###
+GET http://localhost:8080/api/gmail/connect
+Authorization: Bearer  eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0ZXJAZ21haWwuY29tIiwiaWF0IjoxNzkzNzI1NTYwLCJleHAiOjE3OTM4MTE5NjB9.QsRJ67n85BOvPdF0ehjloAYoJD0L4o04_tFWWYV2t0o
 
 
 
