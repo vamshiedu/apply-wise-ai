@@ -1,4 +1,4 @@
-package com.applywise.backend.config;
+package com.applywise.backend.auth;
 
 import java.util.Arrays;
 import com.applywise.backend.gmail.GmailOAuthSuccessHandler;
